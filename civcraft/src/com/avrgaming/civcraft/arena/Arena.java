@@ -1,3 +1,6 @@
+// changelog:
+// https://github.com/ataranlen/civcraft/pull/73/commits/a34dd3a5bbc71b503f8dcc386fce3801abd25900
+
 package com.avrgaming.civcraft.arena;
 
 
@@ -7,7 +10,6 @@ import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -27,7 +29,6 @@ import com.avrgaming.civcraft.main.CivMessage;
 import com.avrgaming.civcraft.object.Resident;
 import com.avrgaming.civcraft.util.BlockCoord;
 import com.avrgaming.civcraft.util.CivColor;
-import com.avrgaming.civcraft.util.ItemManager;
 
 public class Arena {
 	public ConfigArena config;
@@ -84,6 +85,7 @@ public class Arena {
 		return getInstanceName(this.instanceID, config);
 	}
 	
+	@SuppressWarnings("deprecation")
 	public void addTeam(ArenaTeam team) throws CivException {
 		this.scoreboards.put(team.getName(), ArenaManager.scoreboardManager.getNewScoreboard());
 		
@@ -98,17 +100,11 @@ public class Arena {
 			team.setTeamColor(CivColor.Gold);
 		}
 		
-		//team.getScoreboardTeam().setPrefix(team.getTeamColor()+"["+team.getName()+"]");
-		
 		for (Resident resident : team.teamMembers) {
 			try {
 			CivGlobal.getPlayer(resident);
 			} catch (CivException e) {
 				continue;
-			}
-			
-			if (!resident.isUsesAntiCheat()) {
-				throw new CivException(resident.getName()+" must be using anti-cheat in order to join the arena.");
 			}
 			
 			try {
@@ -124,59 +120,41 @@ public class Arena {
 		teamCount++;
 	}
 	
-	private void addCivCraftItemToInventory(String id, Inventory inv) {
-		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterialFromId(id);
-		ItemStack stack = LoreCraftableMaterial.spawn(craftMat);
-		stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementSoulBound"));
-		stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementArenaItem"));
-		inv.addItem(stack);
-	}
-	
-	private void addItemToInventory(Material mat, Inventory inv, int amount) {
-		ItemStack stack = ItemManager.createItemStack(ItemManager.getId(mat), amount);
-		stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementSoulBound"));
-		stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementArenaItem"));
-		inv.addItem(stack);
-	}
-	
 	private void createInventory(Resident resident) {
 		Player player;
-		try {
-			player = CivGlobal.getPlayer(resident);
+			try {
+				player = CivGlobal.getPlayer(resident);
+			
 			Inventory inv = Bukkit.createInventory(player, 9*6, resident.getName()+"'s Gear");
 
 			for (int i = 0; i < 3; i++) {
-				addCivCraftItemToInventory("mat_tungsten_sword", inv);
-				addCivCraftItemToInventory("mat_tungsten_boots", inv);
-				addCivCraftItemToInventory("mat_tungsten_chestplate", inv);
-				addCivCraftItemToInventory("mat_tungsten_leggings", inv);
-				addCivCraftItemToInventory("mat_tungsten_helmet", inv);
+				addCivCraftItemToInventory("mat_iron_sword", inv);
+				addCivCraftItemToInventory("mat_iron_boots", inv);
+				addCivCraftItemToInventory("mat_iron_chestplate", inv);
+				addCivCraftItemToInventory("mat_iron_leggings", inv);
+				addCivCraftItemToInventory("mat_iron_helmet", inv);
 		
-				addCivCraftItemToInventory("mat_marksmen_bow", inv);
-				addCivCraftItemToInventory("mat_composite_leather_boots", inv);
-				addCivCraftItemToInventory("mat_composite_leather_chestplate", inv);
-				addCivCraftItemToInventory("mat_composite_leather_leggings", inv);
-				addCivCraftItemToInventory("mat_composite_leather_helmet", inv);
+				addCivCraftItemToInventory("mat_hunting_bow", inv);
+				addCivCraftItemToInventory("mat_leather_boots", inv);
+				addCivCraftItemToInventory("mat_leather_chestplate", inv);
+				addCivCraftItemToInventory("mat_leather_leggings", inv);
+				addCivCraftItemToInventory("mat_leather_helmet", inv);
 			}
-						
-			addCivCraftItemToInventory("mat_vanilla_diamond_pickaxe", inv);
-
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.ARROW, inv, 64);
-			addItemToInventory(Material.PUMPKIN_PIE, inv, 64);
-			addItemToInventory(Material.PUMPKIN_PIE, inv, 64);
 
 			
 			playerInvs.put(resident.getName(), inv);
-			
-		} catch (CivException e) {
-			e.printStackTrace();
-		}
-		
+			} catch (CivException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	}
+        
+    private void addCivCraftItemToInventory(String id, Inventory inv) {
+		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterialFromId(id);
+		ItemStack stack = LoreCraftableMaterial.spawn(craftMat);
+		stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementArenaItem"));
+        stack = LoreCraftableMaterial.addEnhancement(stack, LoreEnhancement.enhancements.get("LoreEnhancementSoulBound"));
+		inv.addItem(stack);
 	}
 	
 	private ConfigArenaTeam getConfigTeam(int id) throws CivException {
@@ -224,7 +202,7 @@ public class Arena {
 						r.restoreInventory();
 						r.teleportHome();
 						r.save();
-						CivMessage.send(r, CivColor.LightGray+"We've been teleported back to our home since the arena has ended.");
+						CivMessage.send(r, CivColor.LightGray+CivSettings.localize.localizedString("arena_endedTeleport"));
 					} catch (CivException e) {
 						/* player not online, inside arena is set true */
 					}
@@ -320,7 +298,7 @@ public class Arena {
 	public void decrementTimer() {
 		if (timeleft <= 0) {
 			if (!ended) {
-				CivMessage.sendArena(this, "Time is up! Nobody Wins!");
+				CivMessage.sendArena(this, CivSettings.localize.localizedString("arena_timeUp"));
 				ArenaManager.declareDraw(this);
 				ended = true;
 			}

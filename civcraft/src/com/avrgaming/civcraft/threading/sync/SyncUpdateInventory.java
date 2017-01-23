@@ -23,6 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.avrgaming.civcraft.exception.CivException;
+import com.avrgaming.civcraft.main.CivLog;
 import com.avrgaming.civcraft.threading.sync.request.UpdateInventoryRequest;
 
 public class SyncUpdateInventory implements Runnable {
@@ -55,15 +56,19 @@ public class SyncUpdateInventory implements Runnable {
 					
 					switch(request.action) {
 					case ADD:
-						int leftovers = request.inv.addItem(request.stack);
+						int leftovers = request.multiInv.addItem(request.stack);
 						retBool = !(leftovers > 0);
 						break;
 					case REMOVE:
 						try {
-							retBool = request.inv.removeItem(request.stack);
+							retBool = request.multiInv.removeItem(request.stack, true);
 						} catch (CivException e) {
 							e.printStackTrace();
 						}
+						break;
+					case SET:
+						retBool = true;
+						request.inv.setContents(request.cont);
 						break;
 					}
 					
@@ -75,7 +80,7 @@ public class SyncUpdateInventory implements Runnable {
 				lock.unlock();
 			}
 		} else {
-			//CivLog.warning("Sync update inventory lock is busy, trying again next tick");
+			CivLog.warning("Sync update inventory lock is busy, trying again next tick");
 		}
 	}
 }

@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
 
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -115,17 +116,17 @@ public class ScoutTower extends Structure {
 		
 		for (PlayerLocationCache pc : proximityComponent.tryGetNearbyPlayers(true)) {
 			empty = false;
-			scoutDebug("Inspecting player:"+pc.getName());
+			scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_inspectingPlayer")+pc.getName());
 			Player player;
 			try {
 				player = CivGlobal.getPlayer(pc.getName());
 			} catch (CivException e) {
-				scoutDebug("not online?");
+				scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_notOnline"));
 				return;
 			}
 			
-			if (player.isOp()) {
-				scoutDebug("player is op");
+			if (player.isOp() || player.getGameMode() != GameMode.SURVIVAL) {
+				scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_isOP"));
 				continue;
 			}
 			
@@ -133,7 +134,7 @@ public class ScoutTower extends Structure {
 			
 			/* Do not re-announce players announced by other scout towers */
 			if (alreadyAnnounced.contains(this.getCiv().getName()+":"+player.getName())) {
-				scoutDebug("already announced:"+pc.getName());
+				scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_alreadyAnnounced")+pc.getName());
 				continue;
 			}
 			
@@ -144,7 +145,7 @@ public class ScoutTower extends Structure {
 				/* do not announce residents in this civ */
 				Resident resident = CivGlobal.getResident(player);
 				if (resident != null && resident.hasTown() && resident.getCiv() == this.getCiv()) {
-					scoutDebug("same civ");
+					scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_sameCiv"));
 					continue;
 				}
 				
@@ -155,7 +156,7 @@ public class ScoutTower extends Structure {
 				case ALLY:
 //				case VASSAL:
 //				case MASTER:
-					scoutDebug("ally or peace");
+					scoutDebug(CivSettings.localize.localizedString("acoutTower_debug_ally"));
 					continue;
 				default:
 					break;
@@ -164,29 +165,28 @@ public class ScoutTower extends Structure {
 				relationName = relation.name();
 				relationColor = Relation.getRelationColor(relation);
 			} else {
-				relationName = "OUTLAW";
+				relationName = CivSettings.localize.localizedString("scoutTower_isOutlaw");
 				relationColor = CivColor.Yellow;
 			}
 			
 			
 			if (center.getWorld() != this.getCorner().getLocation().getWorld()) {
-				scoutDebug("wrong world");
+				scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_wrongWorld"));
 				continue;
 			}
 			
 			if (center.distance(player.getLocation()) < range) {
 				/* Notify the town or civ. */
-					CivMessage.sendScout(this.getCiv(), "Scout tower detected "+relationColor+
-							player.getName()+"("+relationName+")"+CivColor.White+
-							" at ("+player.getLocation().getBlockX()+","+player.getLocation().getBlockY()+","+player.getLocation().getBlockZ()+") in "+
-							this.getTown().getName());
+					CivMessage.sendScout(this.getCiv(), CivSettings.localize.localizedString("var_scoutTower_detection",
+							(relationColor+player.getName()+"("+relationName+")"+CivColor.White),(player.getLocation().getBlockX()+","+player.getLocation().getBlockY()+","+player.getLocation().getBlockZ()),
+							this.getTown().getName()));
 					alreadyAnnounced.add(this.getCiv().getName()+":"+player.getName());
 				
 			}
 		}
 		
 		if (empty) {
-			scoutDebug("Proximity cache was empty");
+			scoutDebug(CivSettings.localize.localizedString("scoutTower_debug_emptyCache"));
 		}
 	}
 	

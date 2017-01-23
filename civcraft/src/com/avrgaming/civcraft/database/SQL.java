@@ -40,11 +40,13 @@ import com.avrgaming.civcraft.main.CivGlobal;
 import com.avrgaming.civcraft.main.CivLog;
 import com.avrgaming.civcraft.object.Civilization;
 import com.avrgaming.civcraft.object.MissionLogger;
+import com.avrgaming.civcraft.object.MobSpawner;
 import com.avrgaming.civcraft.object.NamedObject;
 import com.avrgaming.civcraft.object.ProtectedBlock;
 import com.avrgaming.civcraft.object.Relation;
 import com.avrgaming.civcraft.object.Resident;
 import com.avrgaming.civcraft.object.SQLObject;
+import com.avrgaming.civcraft.object.StructureSign;
 import com.avrgaming.civcraft.object.Town;
 import com.avrgaming.civcraft.object.TownChunk;
 import com.avrgaming.civcraft.object.TradeGood;
@@ -59,7 +61,6 @@ import com.avrgaming.civcraft.threading.TaskMaster;
 import com.avrgaming.civcraft.util.BiomeCache;
 import com.avrgaming.global.perks.PerkManager;
 import com.avrgaming.global.perks.PerkManagerSimple;
-import com.avrgaming.global.perks.PlatinumManager;
 import com.avrgaming.global.reports.ReportManager;
 import com.avrgaming.global.scores.ScoreManager;
 import com.jolbox.bonecp.Statistics;
@@ -109,8 +110,8 @@ public class SQL {
 		SQL.max_conns = Integer.valueOf(CivSettings.getStringBase("mysql.max_conns"));
 		SQL.parts = Integer.valueOf(CivSettings.getStringBase("mysql.parts"));
 
-		
-		CivLog.info("\t Using "+SQL.tb_prefix+SQL.db_name+" as database.");
+				CivLog.info("\t Using "+SQL.hostname+":"+SQL.port+" user:"+SQL.username+" DB:"+SQL.db_name);
+
 		CivLog.info("\t Building Connection Pool for GAME database.");
 		gameDatabase = new ConnectionPool(SQL.dsn, SQL.username, SQL.password, SQL.min_conns, SQL.max_conns, SQL.parts);
 		CivLog.info("\t Connected to GAME database");
@@ -127,27 +128,27 @@ public class SQL {
 
 		SQL.global_dsn = "jdbc:mysql://"+ SQL.global_hostname + ":" + SQL.global_port + "/" + SQL.global_db;
 		CivLog.info("\t Using GLOBAL db at:"+SQL.global_hostname+":"+SQL.global_port+" user:"+SQL.global_username+" DB:"+SQL.global_db);
-		CivLog.info("\t Building Connection Pool for GAME database.");
+		CivLog.info("\t Building Connection Pool for GLOBAL database.");
 		globalDatabase = new ConnectionPool(SQL.global_dsn, SQL.global_username, SQL.global_password, SQL.global_min_conns, SQL.global_max_conns, SQL.global_parts);
 		CivLog.info("\t Connected to GLOBAL database");
 		
 		CivGlobal.perkManager = new PerkManager();
-		if (PlatinumManager.isLegacyEnabled()) {
-			CivLog.heading("Initializing Perk/Web Database");	
-			PerkManager.hostname = CivSettings.getStringBase("perk_database.hostname");
-			PerkManager.port = CivSettings.getStringBase("perk_database.port");
-			PerkManager.db_name = CivSettings.getStringBase("perk_database.database");
-			PerkManager.username = CivSettings.getStringBase("perk_database.username");
-			PerkManager.password = CivSettings.getStringBase("perk_database.password");
-			PerkManager.dsn = "jdbc:mysql://" + PerkManager.hostname + ":" + PerkManager.port + "/" + PerkManager.db_name;
-			CivLog.info("\t Using "+PerkManager.dsn+" as PERK database.");
-			perkDatabase = new ConnectionPool(PerkManager.dsn, PerkManager.username, PerkManager.password, SQL.global_min_conns, SQL.global_max_conns, SQL.global_parts);
-			CivLog.info("\t Connected to PERK database.");
-		} else if (PlatinumManager.isEnabled()) {
+//		if (PlatinumManager.isLegacyEnabled()) {
+//			CivLog.heading("Initializing Perk/Web Database");	
+//			PerkManager.hostname = CivSettings.getStringBase("perk_database.hostname");
+//			PerkManager.port = CivSettings.getStringBase("perk_database.port");
+//			PerkManager.db_name = CivSettings.getStringBase("perk_database.database");
+//			PerkManager.username = CivSettings.getStringBase("perk_database.username");
+//			PerkManager.password = CivSettings.getStringBase("perk_database.password");
+//			PerkManager.dsn = "jdbc:mysql://" + PerkManager.hostname + ":" + PerkManager.port + "/" + PerkManager.db_name;
+//			CivLog.info("\t Using "+PerkManager.dsn+" as PERK database.");
+//			perkDatabase = new ConnectionPool(PerkManager.dsn, PerkManager.username, PerkManager.password, SQL.global_min_conns, SQL.global_max_conns, SQL.global_parts);
+//			CivLog.info("\t Connected to PERK database.");
+//		} else if (PlatinumManager.isEnabled()) {
 			CivGlobal.perkManager = new PerkManagerSimple();
 			CivGlobal.perkManager.init();
 			CivLog.info("Enabled SIMPLE PerkManager");
-		}
+//		}
 
 		
 		CivLog.heading("Initializing SQL Finished");
@@ -170,6 +171,7 @@ public class SQL {
 		RoadBlock.init();
 		PermissionGroup.init();
 		TradeGood.init();
+		MobSpawner.init();
 		ProtectedBlock.init();
 		BonusGoodie.init();
 		MissionLogger.init();
@@ -178,6 +180,7 @@ public class SQL {
 		ConfigMarketItem.init();
 		RandomEvent.init();
 		ArenaTeam.init();
+		StructureSign.init();
 					
 		CivLog.heading("Building Global Tables!!");
 		ReportManager.init();

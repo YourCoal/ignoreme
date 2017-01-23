@@ -27,6 +27,7 @@ import org.bukkit.inventory.ItemStack;
 import com.avrgaming.civcraft.config.CivSettings;
 import com.avrgaming.civcraft.config.ConfigCottageLevel;
 import com.avrgaming.civcraft.config.ConfigMineLevel;
+import com.avrgaming.civcraft.config.ConfigTempleLevel;
 import com.avrgaming.civcraft.exception.CivException;
 import com.avrgaming.civcraft.main.CivData;
 import com.avrgaming.civcraft.main.CivGlobal;
@@ -35,6 +36,7 @@ import com.avrgaming.civcraft.sessiondb.SessionEntry;
 import com.avrgaming.civcraft.structure.Buildable;
 import com.avrgaming.civcraft.structure.Cottage;
 import com.avrgaming.civcraft.structure.Mine;
+import com.avrgaming.civcraft.structure.Temple;
 import com.avrgaming.civcraft.threading.TaskMaster;
 import com.avrgaming.civcraft.util.ItemManager;
 import com.avrgaming.civcraft.util.MultiInventory;
@@ -87,7 +89,12 @@ public class ConsumeLevelComponent extends Component {
 		
 		//XXX make both mine/cottage/longhouse levels similar in the yml so they can be loaded
 		// without this check.
-		if (buildable instanceof Cottage) {
+		if (buildable instanceof Temple) {
+				for (ConfigTempleLevel lvl : CivSettings.templeLevels.values()) {
+					this.addLevel(lvl.level, lvl.count);
+					this.setConsumes(lvl.level, lvl.consumes);
+				}
+		} else if (buildable instanceof Cottage) {
 			for (ConfigCottageLevel lvl : CivSettings.cottageLevels.values()) {
 				this.addLevel(lvl.level, lvl.count);
 				this.setConsumes(lvl.level, lvl.consumes);
@@ -287,7 +294,7 @@ public class ConsumeLevelComponent extends Component {
 		return found;
 	}
 	
-	private void consumeFromInventory() {
+	private void consumeFromInventory(Boolean sync) {
 		if (foundCounts == null) {
 			return;
 		}
@@ -342,35 +349,37 @@ public class ConsumeLevelComponent extends Component {
 					int totalBaseConsumed = totalBase - leftOverBase;
 										
 					try {
-						source.removeItem(ee.altType, totalAltConsumed);
+						source.removeItem(ee.altType, totalAltConsumed, sync);
 					} catch (CivException e) {
 						e.printStackTrace();
 					}
 					if (totalBaseConsumed > 0) {
 						try {
-							source.removeItem(ee.baseType, totalBaseConsumed);
+							source.removeItem(ee.baseType, totalBaseConsumed, sync);
 						} catch (CivException e) {
 							e.printStackTrace();
 						}
 					} else {
 						if (totalBaseConsumed != 0) {
 							/* If the total amount consumed is negative, add it to the inventory. */
-							source.addItem(ItemManager.createItemStack(ee.baseType, (-1*totalBaseConsumed)));
+							source.addItems(ItemManager.createItemStack(ee.baseType, (-1*totalBaseConsumed)), sync);
 						}
 					}
 				}
 			} else {
 				/* We had enough of our base item, consume it. */
 				try {
-					source.removeItem(typeID, getConsumedAmount(amount));
+					source.removeItem(typeID, getConsumedAmount(amount), sync);
 				} catch (CivException e) {
 					e.printStackTrace();
 				}
 			}
 		}
 	}
-	
 	public Result processConsumption() {
+		return processConsumption(false);
+	}
+	public Result processConsumption(Boolean sync) {
 		
 		Integer currentCountMax = levelCounts.get(this.level);
 		if (currentCountMax == null) {
@@ -380,7 +389,7 @@ public class ConsumeLevelComponent extends Component {
 		}
 		
 		if (hasEnoughToConsume()) {
-			consumeFromInventory();
+			consumeFromInventory(sync);
 			
 			if ((this.count+1) >= currentCountMax) {
 				// Level up?

@@ -41,6 +41,7 @@ import org.bukkit.FireworkEffect.Type;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -57,6 +58,7 @@ import com.avrgaming.civcraft.command.admin.AdminTownCommand;
 import com.avrgaming.civcraft.config.CivSettings;
 import com.avrgaming.civcraft.config.ConfigBuff;
 import com.avrgaming.civcraft.config.ConfigBuildableInfo;
+import com.avrgaming.civcraft.config.ConfigMobSpawner;
 import com.avrgaming.civcraft.config.ConfigPerk;
 import com.avrgaming.civcraft.config.ConfigTradeGood;
 import com.avrgaming.civcraft.database.SQL;
@@ -75,9 +77,6 @@ import com.avrgaming.civcraft.main.CivData;
 import com.avrgaming.civcraft.main.CivGlobal;
 import com.avrgaming.civcraft.main.CivLog;
 import com.avrgaming.civcraft.main.CivMessage;
-import com.avrgaming.civcraft.mobs.MobSpawner;
-import com.avrgaming.civcraft.mobs.MobSpawner.CustomMobLevel;
-import com.avrgaming.civcraft.mobs.MobSpawner.CustomMobType;
 import com.avrgaming.civcraft.object.Civilization;
 import com.avrgaming.civcraft.object.CultureChunk;
 import com.avrgaming.civcraft.object.Resident;
@@ -85,6 +84,7 @@ import com.avrgaming.civcraft.object.StructureSign;
 import com.avrgaming.civcraft.object.Town;
 import com.avrgaming.civcraft.object.TownChunk;
 import com.avrgaming.civcraft.permission.PermissionGroup;
+import com.avrgaming.civcraft.populators.MobSpawnerPopulator;
 import com.avrgaming.civcraft.populators.TradeGoodPopulator;
 import com.avrgaming.civcraft.road.Road;
 import com.avrgaming.civcraft.siege.Cannon;
@@ -94,15 +94,21 @@ import com.avrgaming.civcraft.structure.Capitol;
 import com.avrgaming.civcraft.structure.Structure;
 import com.avrgaming.civcraft.structure.TownHall;
 import com.avrgaming.civcraft.structure.Wall;
+import com.avrgaming.civcraft.structure.wonders.GrandShipIngermanland;
+import com.avrgaming.civcraft.structure.wonders.Wonder;
 import com.avrgaming.civcraft.tasks.TradeGoodSignCleanupTask;
 import com.avrgaming.civcraft.template.Template;
 import com.avrgaming.civcraft.template.TemplateStream;
 import com.avrgaming.civcraft.threading.TaskMaster;
 import com.avrgaming.civcraft.threading.tasks.ChunkGenerateTask;
 import com.avrgaming.civcraft.threading.tasks.CultureProcessAsyncTask;
+import com.avrgaming.civcraft.threading.tasks.FisheryAsyncTask;
+import com.avrgaming.civcraft.threading.tasks.MobSpawnerPostGenTask;
 import com.avrgaming.civcraft.threading.tasks.PostBuildSyncTask;
+import com.avrgaming.civcraft.threading.tasks.QuarryAsyncTask;
 import com.avrgaming.civcraft.threading.tasks.TradeGoodPostGenTask;
 import com.avrgaming.civcraft.threading.tasks.TrommelAsyncTask;
+import com.avrgaming.civcraft.threading.tasks.MobGrinderAsyncTask;
 import com.avrgaming.civcraft.threading.timers.DailyTimer;
 import com.avrgaming.civcraft.tutorial.CivTutorial;
 import com.avrgaming.civcraft.util.AsciiMap;
@@ -148,10 +154,13 @@ public class DebugCommand extends CommandBase {
 		commands.put("unloadchunk", "[x] [z] - unloads this chunk.");
 		commands.put("setspeed", "[speed] - set your speed to this");
 		commands.put("tradegenerate", "generates trade goods at picked locations");
+		commands.put("mobspawnergenerate", "generates mob spawners at picked locations");
 		commands.put("createtradegood", "[good_id] - creates a trade goodie here.");
+		commands.put("createmobspawner", "[spawner_id] - creates a mob spawner here.");
 		commands.put("cleartradesigns", "clears extra trade signs above trade outpots");
 		commands.put("restoresigns", "restores all structure signs");
-		commands.put("regenchunk", "regens every chunk that has a trade good in it");
+		commands.put("regentradegoodchunk", "regens every chunk that has a trade good in it");
+		commands.put("regenmobspawnerchunk", "regens every chunk that has a Mob Spawner in it");
 		commands.put("quickcodereload", "Reloads the quick code plugin");
 		commands.put("loadbans", "Loads bans from ban list into global table");
 		commands.put("setallculture", "[amount] - sets all towns culture in the world to this amount.");
@@ -169,6 +178,9 @@ public class DebugCommand extends CommandBase {
 		commands.put("camp", "Debugs camps.");
 		commands.put("blockinfo", "[x] [y] [z] shows block info for this block.");
 		commands.put("trommel", "[name] - turn on this town's trommel debugging.");
+		commands.put("quarry", "[name] - turn on this town's quarry debugging.");
+		commands.put("fishery", "[name] - turn on this town's Fish Hatchery debugging.");
+		commands.put("mobgrinder", "[name] - turn on this town's mob grinder debugging.");
 		commands.put("fakeresidents", "[town] [count] - Adds this many fake residents to a town.");
 		commands.put("clearresidents", "[town] - clears this town of it's random residents.");
 		commands.put("biomehere", "- shows you biome info where you're standing.");
@@ -287,28 +299,10 @@ public class DebugCommand extends CommandBase {
 	
 	public void heal_cmd() throws CivException {
 		Player player = getPlayer();
-		player.setHealth(player.getMaxHealth());
+		Double maxHP = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getBaseValue();
+		player.setHealth(maxHP);
 		player.setFoodLevel(50);
 		CivMessage.send(player, "Healed....");
-	}
-	
-	public void spawn_cmd() throws CivException {
-		Player player = getPlayer();		
-		String mob = getNamedString(1, "name");
-		String lvl = getNamedString(2, "level");
-		
-		MobSpawner.CustomMobType type = CustomMobType.valueOf(mob.toUpperCase());
-		MobSpawner.CustomMobLevel level = CustomMobLevel.valueOf(lvl.toUpperCase());
-		
-		if (type == null) {
-			throw new CivException("no mob named:"+mob);
-		}
-		
-		if (level == null) {
-			throw new CivException("no level named:"+lvl);
-		}
-		
-		MobSpawner.spawnCustomMob(type, level, player.getLocation());
 	}
 	
 	public void datebypass_cmd() {
@@ -616,14 +610,14 @@ public class DebugCommand extends CommandBase {
 		String hex = getNamedString(1, "color code");
 		long value = Long.decode(hex);
 		
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null || ItemManager.getId(inHand) == CivData.AIR) {
 			throw new CivException("please have an item in your hand.");
 		}
 		
 		AttributeUtil attrs = new AttributeUtil(inHand);
 		attrs.setColor(value);		
-		player.setItemInHand(attrs.getStack());
+		player.getInventory().setItemInMainHand(attrs.getStack());
 		CivMessage.sendSuccess(player, "Set color.");
 	}
 	
@@ -665,14 +659,14 @@ public class DebugCommand extends CommandBase {
 		String key = getNamedString(1, "key");
 		String value = getNamedString(2, "value");
 		
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null) {
 			throw new CivException("You must have an item in hand.");
 		}
 		
 		AttributeUtil attrs = new AttributeUtil(inHand);
 		attrs.setCivCraftProperty(key, value);
-		player.setItemInHand(attrs.getStack());
+		player.getInventory().setItemInMainHand(attrs.getStack());
 		CivMessage.sendSuccess(player, "Set property.");
 		
 	}
@@ -681,7 +675,7 @@ public class DebugCommand extends CommandBase {
 		Player player = getPlayer();
 		String key = getNamedString(1, "key");
 		
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null) {
 			throw new CivException("You must have an item in hand.");
 		}
@@ -693,7 +687,7 @@ public class DebugCommand extends CommandBase {
 	}
 	public void getdura_cmd() throws CivException {
 		Player player = getPlayer();
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		CivMessage.send(player, "Durability:"+inHand.getDurability());
 		CivMessage.send(player, "MaxDura:"+inHand.getType().getMaxDurability());
 		
@@ -703,7 +697,7 @@ public class DebugCommand extends CommandBase {
 		Player player = getPlayer();
 		Integer dura = getNamedInteger(1);
 		
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		inHand.setDurability((short)dura.shortValue());
 		
 		CivMessage.send(player, "Set Durability:"+inHand.getDurability());
@@ -713,7 +707,7 @@ public class DebugCommand extends CommandBase {
 	
 	public void getmid_cmd() throws CivException {
 		Player player = getPlayer();
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null) {
 			throw new CivException("You need an item in your hand.");
 		}
@@ -723,7 +717,7 @@ public class DebugCommand extends CommandBase {
 	
 	public void setspecial_cmd() throws CivException {
 		Player player = getPlayer();
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null) {
 			throw new CivException("You need an item in your hand.");
 		}
@@ -731,13 +725,13 @@ public class DebugCommand extends CommandBase {
 	//	AttributeUtil attrs = new AttributeUtil(inHand);
 	//	attrs.setCivCraftProperty("customId", "testMyCustomId");
 		ItemStack stack = LoreMaterial.addEnhancement(inHand, new LoreEnhancementSoulBound());
-		player.setItemInHand(stack);
+		player.getInventory().setItemInMainHand(stack);
 		CivMessage.send(player, "Set it.");
 	}
 	
 	public void getspecial_cmd() throws CivException {
 		Player player = getPlayer();
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand == null) {
 			throw new CivException("You need an item in your hand.");
 		}
@@ -826,6 +820,39 @@ public class DebugCommand extends CommandBase {
 		
 		CivMessage.send(sender, "Trommel toggled.");
 	}
+	public void quarry_cmd() throws CivException {
+		Town town = getNamedTown(1);
+		
+		if (QuarryAsyncTask.debugTowns.contains(town.getName())) {
+			QuarryAsyncTask.debugTowns.remove(town.getName());
+		} else {
+			QuarryAsyncTask.debugTowns.add(town.getName());
+		}
+		
+		CivMessage.send(sender, "Quarry toggled.");
+	}
+	public void fishery_cmd() throws CivException {
+		Town town = getNamedTown(1);
+		
+		if (FisheryAsyncTask.debugTowns.contains(town.getName())) {
+			FisheryAsyncTask.debugTowns.remove(town.getName());
+		} else {
+			FisheryAsyncTask.debugTowns.add(town.getName());
+		}
+		
+		CivMessage.send(sender, "Fish Hatchery toggled.");
+	}
+	public void mobgrinder_cmd() throws CivException {
+		Town town = getNamedTown(1);
+		
+		if (MobGrinderAsyncTask.debugTowns.contains(town.getName())) {
+			MobGrinderAsyncTask.debugTowns.remove(town.getName());
+		} else {
+			MobGrinderAsyncTask.debugTowns.add(town.getName());
+		}
+		
+		CivMessage.send(sender, "Mob Grinder toggled.");
+	}
 	
 	public void blockinfo_cmd() throws CivException {
 		int x = getNamedInteger(1);
@@ -875,7 +902,8 @@ public class DebugCommand extends CommandBase {
 		ChunkCoord coord = new ChunkCoord(you.getLocation());
 		
 		for (Player player : Bukkit.getOnlinePlayers()) {
-			player.getWorld().refreshChunk(coord.getX(), coord.getZ());
+			player.getWorld().unloadChunk(coord.getX(), coord.getZ());
+			player.getWorld().loadChunk(coord.getX(), coord.getZ());
 		}
 	}
 	
@@ -906,7 +934,7 @@ public class DebugCommand extends CommandBase {
 			throw new CivException("Enter name and first lore line.");
 		}
 		
-		ItemStack inHand = player.getItemInHand();
+		ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand != null) {
 			
 			
@@ -935,7 +963,7 @@ public class DebugCommand extends CommandBase {
 	public void loretest_cmd() throws CivException {
 		Player player = getPlayer();
 		
-		org.bukkit.inventory.ItemStack inHand = player.getItemInHand();
+		org.bukkit.inventory.ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand != null) {
 			ItemMeta meta = inHand.getItemMeta();
 			List<String> newLore = meta.getLore();
@@ -950,7 +978,7 @@ public class DebugCommand extends CommandBase {
 	public void loreset_cmd() throws CivException {
 		Player player = getPlayer();
 		
-		org.bukkit.inventory.ItemStack inHand = player.getItemInHand();
+		org.bukkit.inventory.ItemStack inHand = player.getInventory().getItemInMainHand();
 		if (inHand != null) {
 //			HashMap<String, String> loremap = new HashMap<String, String>();
 //			
@@ -967,7 +995,7 @@ public class DebugCommand extends CommandBase {
 //	public void shownbt_cmd() throws CivException {
 //		Player player = getPlayer();
 //		
-//		org.bukkit.inventory.ItemStack inHand = player.getItemInHand();
+//		org.bukkit.inventory.ItemStack inHand = player.getInventory().getItemInMainHand();
 //		if (inHand != null) {
 //			NBT.debugPrintItemTags(inHand);
 //		}
@@ -976,7 +1004,7 @@ public class DebugCommand extends CommandBase {
 //	public void addnbt_cmd() throws CivException {
 //		Player player = getPlayer();
 //		
-//		org.bukkit.inventory.ItemStack inHand = player.getItemInHand();
+//		org.bukkit.inventory.ItemStack inHand = player.getInventory().getItemInMainHand();
 //		if (inHand != null) {
 //			NBT.addCustomTag("RJTEST", 1337, inHand);
 //		}
@@ -1022,17 +1050,27 @@ public class DebugCommand extends CommandBase {
 		
 	}
 	
-	public void regenchunk_cmd() {
+	public void regentradegoodchunk_cmd() {
 	
 		World world = Bukkit.getWorld("world");
 
-		for(ChunkCoord coord : CivGlobal.preGenerator.goodPicks.keySet()) {
+		for(ChunkCoord coord : CivGlobal.tradeGoodPreGenerator.goodPicks.keySet()) {
 			
 			world.regenerateChunk(coord.getX(), coord.getZ());
 			CivMessage.send(sender, "Regened:"+coord);
 		}
+	}
+	
+	public void regenmobspawnerchunk_cmd() {
+	
+		World world = Bukkit.getWorld("world");
 		
-		
+		for(ChunkCoord coord : CivGlobal.mobSpawnerPreGenerator.spawnerPicks.keySet()) {
+			
+			world.regenerateChunk(coord.getX(), coord.getZ());
+			CivMessage.send(sender, "Regened:"+coord);
+			
+		}
 	}
 	
 	public void restoresigns_cmd() {
@@ -1088,6 +1126,23 @@ public class DebugCommand extends CommandBase {
 		
 	}
 	
+	public void mobspawnergenerate_cmd() throws CivException {
+		if (CivSettings.hasCustomMobs) {
+			String playerName;
+			
+			if (sender instanceof Player) {
+				playerName = sender.getName();
+			} else {
+				playerName = null;
+			}
+			
+			CivMessage.send(sender, "Starting Mob Spawner Generation task...");
+			TaskMaster.asyncTask(new MobSpawnerPostGenTask(playerName, 0), 0);
+		} else {
+			CivMessage.send(sender, "Unable to generate CustomMob spawners, CustomMobs is not enabled.");
+		}
+	}
+	
 	
 	public void tradegenerate_cmd() throws CivException {
 		String playerName;
@@ -1116,6 +1171,25 @@ public class DebugCommand extends CommandBase {
 		BlockCoord coord = new BlockCoord(getPlayer().getLocation());
 		TradeGoodPopulator.buildTradeGoodie(good, coord, getPlayer().getLocation().getWorld(), false);
 		CivMessage.sendSuccess(sender, "Created a "+good.name+" here.");
+	}
+	
+	public void createmobspawner_cmd() throws CivException {
+		if (CivSettings.hasCustomMobs) {
+			if (args.length < 2) {
+				throw new CivException("Enter mob spawner id");
+			}
+			
+			ConfigMobSpawner spawner = CivSettings.spawners.get(args[1]);
+			if (spawner == null) {
+				throw new CivException("Unknown mob spawner id:"+args[1]);
+			}
+			
+			BlockCoord coord = new BlockCoord(getPlayer().getLocation());
+			MobSpawnerPopulator.buildMobSpawner(spawner, coord, getPlayer().getLocation().getWorld(), false);
+			CivMessage.sendSuccess(sender, "Created a "+spawner.name+" Mob Spawner here.");
+		} else {
+			CivMessage.send(sender, "Unable to generate CustomMob spawners, CustomMobs is not enabled.");
+		}
 	}
 	
 	public void generate_cmd() throws CivException {
@@ -1215,6 +1289,11 @@ public class DebugCommand extends CommandBase {
 					((ArrowTower)struct).setPower(Float.valueOf(args[1]));
 				}
 			}
+			for (Wonder wonder : town.getWonders()) {
+				if (wonder instanceof GrandShipIngermanland) {
+					((GrandShipIngermanland)wonder).setArrorPower(Float.valueOf(args[1]));
+				}
+			}
 		}
 		
 		
@@ -1308,12 +1387,12 @@ public class DebugCommand extends CommandBase {
 	public void dupe_cmd() throws CivException {
 		Player player = getPlayer();
 		
-		if (player.getItemInHand() == null || ItemManager.getId(player.getItemInHand()) == 0) {
+		if (player.getInventory().getItemInMainHand() == null || ItemManager.getId(player.getInventory().getItemInMainHand()) == 0) {
 			throw new CivException("No item in hand.");
 		}
 		
-		player.getInventory().addItem(player.getItemInHand());
-		CivMessage.sendSuccess(player, player.getItemInHand().getType().name()+ "duplicated.");
+		player.getInventory().addItem(player.getInventory().getItemInMainHand());
+		CivMessage.sendSuccess(player, player.getInventory().getItemInMainHand().getType().name()+ "duplicated.");
 	}
 	
 	public void makeframe_cmd() throws CivException {

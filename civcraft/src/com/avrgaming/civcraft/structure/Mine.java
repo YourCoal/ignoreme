@@ -32,6 +32,7 @@ import com.avrgaming.civcraft.config.CivSettings;
 import com.avrgaming.civcraft.config.ConfigMineLevel;
 import com.avrgaming.civcraft.exception.CivException;
 import com.avrgaming.civcraft.exception.CivTaskAbortException;
+import com.avrgaming.civcraft.main.CivLog;
 import com.avrgaming.civcraft.main.CivMessage;
 import com.avrgaming.civcraft.object.Buff;
 import com.avrgaming.civcraft.object.StructureChest;
@@ -101,50 +102,71 @@ public class Mine extends Structure {
 		}
 		getConsumeComponent().setSource(multiInv);
 		getConsumeComponent().setConsumeRate(1.0);
-		Result result = getConsumeComponent().processConsumption();
-		getConsumeComponent().onSave();		
-		return result;
+		try {
+			Result result = getConsumeComponent().processConsumption();
+			getConsumeComponent().onSave();		
+			return result;
+		} catch (IllegalStateException e) {
+			CivLog.exception(this.getDisplayName()+" Process Error in town: "+this.getTown().getName()+" and Location: "+this.getCorner(), e);
+			return Result.STAGNATE;
+		}
 	}
 	
-	public void process_mine(CivAsyncTask task) throws InterruptedException {	
-		Result result = this.consume(task);
+	public void process_mine(CivAsyncTask task) throws InterruptedException {
+		Result result = null;
+		try {
+			result = this.consume(task);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		switch (result) {
 		case STARVE:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A level "+getConsumeComponent().getLevel()+" mine's production "+
-					CivColor.Rose+"fell. "+CivColor.LightGreen+getConsumeComponent().getCountString());
+			CivMessage.sendTown(getTown(), CivColor.Rose+CivSettings.localize.localizedString("var_mine_productionFell",getConsumeComponent().getLevel(),CivColor.LightGreen+getConsumeComponent().getCountString()));
 			break;
 		case LEVELDOWN:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A mine ran out of redstone and "+
-					CivColor.Rose+"lost"+CivColor.LightGreen+" a level. It is now level "+getConsumeComponent().getLevel());
+			CivMessage.sendTown(getTown(), CivColor.Rose+CivSettings.localize.localizedString("var_mine_lostalvl",getConsumeComponent().getLevel()));
 			break;
 		case STAGNATE:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A level "+
-					getConsumeComponent().getLevel()+" mine "+CivColor.Yellow+"stagnated "+CivColor.LightGreen+getConsumeComponent().getCountString());
+			CivMessage.sendTown(getTown(), CivColor.Rose+CivSettings.localize.localizedString("var_mine_stagnated",getConsumeComponent().getLevel(),CivColor.LightGreen+getConsumeComponent().getCountString()));
 			break;
 		case GROW:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A level "+getConsumeComponent().getLevel()+" mine's production "+
-					CivColor.Green+"rose. "+CivColor.LightGreen+getConsumeComponent().getCountString());
+			CivMessage.sendTown(getTown(), CivColor.LightGreen+CivSettings.localize.localizedString("var_mine_productionGrew",getConsumeComponent().getLevel(),getConsumeComponent().getCountString()));
 			break;
 		case LEVELUP:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A mine "+CivColor.Green+"gained"+CivColor.LightGreen+
-					" a level. It is now level "+getConsumeComponent().getLevel());
+			CivMessage.sendTown(getTown(), CivColor.LightGreen+CivSettings.localize.localizedString("var_mine_lvlUp",getConsumeComponent().getLevel()));
 			break;
 		case MAXED:
-			CivMessage.sendTown(getTown(), CivColor.LightGreen+"A level "+getConsumeComponent().getLevel()+" mine is "+
-					CivColor.Green+"maxed. "+CivColor.LightGreen+getConsumeComponent().getCountString());
+			CivMessage.sendTown(getTown(), CivColor.LightGreen+CivSettings.localize.localizedString("var_mine_maxed",getConsumeComponent().getLevel(),CivColor.LightGreen+getConsumeComponent().getCountString()));
 			break;
 		default:
 			break;
 		}
 	}
+	
+	public double getBonusHammers() {
+		if (!this.isComplete()) {
+			return 0.0;
+		}
+		int level = getLevel();
+		
+		ConfigMineLevel lvl = CivSettings.mineLevels.get(level);
+		return lvl.hammers;	
+	}
 
 	public int getLevel() {
+		if (!this.isComplete()) {
+			return 1;
+		}
 		return this.getConsumeComponent().getLevel();
 	}
 	
 	public double getHammersPerTile() {
 		AttributeBiomeRadiusPerLevel attrBiome = (AttributeBiomeRadiusPerLevel)this.getComponent("AttributeBiomeRadiusPerLevel");
-		double base = attrBiome.getBaseValue();
+		double base = 1.0;
+		
+		if (attrBiome != null) {
+			base = attrBiome.getBaseValue();
+		}
 	
 		double rate = 1;
 		rate += this.getTown().getBuffManager().getEffectiveDouble(Buff.ADVANCED_TOOLING);

@@ -36,7 +36,6 @@ public class FishingListener implements Listener {
 		return dropped;
 	}
 	
-	@SuppressWarnings("deprecation")
 	@EventHandler(priority = EventPriority.MONITOR)
 	 public void onPlayerFish (PlayerFishEvent event) {
 		 if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
@@ -55,24 +54,25 @@ public class FishingListener implements Listener {
 				 for (ItemStack is : leftovers.values()) {
 					 player.getWorld().dropItem(player.getLocation(), is);
 				 }
-				 CivMessage.send(event.getPlayer(), CivColor.LightGreen+"You've fished up "+CivColor.LightPurple+"Raw Fish");
+				 CivMessage.send(event.getPlayer(), CivColor.LightGreen+CivSettings.localize.localizedString("var_fishing_success",CivColor.LightPurple+CivSettings.localize.localizedString("fishing_rawFish")));
 
 			 } else {
 				 for (ConfigFishing d : dropped) {
 					 if (d.craftMatId == null) {
 						 stack = ItemManager.createItemStack(d.type_id, 1);
-						 CivMessage.send(event.getPlayer(), CivColor.LightGreen+"You've fished up "+CivColor.LightPurple+stack.getType().name().replace("_", " ").toLowerCase());	
+						 CivMessage.send(event.getPlayer(), CivColor.LightGreen+CivSettings.localize.localizedString("var_fishing_success",CivColor.LightPurple+stack.getType().name().replace("_", " ").toLowerCase()));	
 					 } else {
 						 LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterialFromId(d.craftMatId);
 						 if (craftMat != null) {
 							 stack = LoreCraftableMaterial.spawn(craftMat);
-							 CivMessage.send(event.getPlayer(), CivColor.LightGreen+"You've fished up "+CivColor.LightPurple+craftMat.getName());
+							 CivMessage.send(event.getPlayer(), CivColor.LightGreen+CivSettings.localize.localizedString("var_fishing_success",CivColor.LightPurple+craftMat.getName()));
 						 }
 					 }
-					 
-					 HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
-					 for (ItemStack is : leftovers.values()) {
-						 player.getWorld().dropItem(player.getLocation(), is);
+					 if (stack != null) {
+						 HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
+						 for (ItemStack is : leftovers.values()) {
+							 player.getWorld().dropItem(player.getLocation(), is);
+						 }
 					 }
 				 }
 			 }

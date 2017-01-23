@@ -19,14 +19,18 @@
 package com.avrgaming.civcraft.listener;
 
 import gpl.AttributeUtil;
+import gpl.HorseModifier;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.LightningStrike;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -34,7 +38,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
@@ -51,6 +54,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
@@ -64,6 +68,7 @@ import com.avrgaming.civcraft.exception.CivException;
 import com.avrgaming.civcraft.exception.InvalidConfiguration;
 import com.avrgaming.civcraft.items.ItemDurabilityEntry;
 import com.avrgaming.civcraft.items.components.Catalyst;
+import com.avrgaming.civcraft.listener.armor.ArmorType;
 import com.avrgaming.civcraft.loreenhancements.LoreEnhancement;
 import com.avrgaming.civcraft.lorestorage.ItemChangeResult;
 import com.avrgaming.civcraft.lorestorage.LoreCraftableMaterial;
@@ -73,33 +78,26 @@ import com.avrgaming.civcraft.main.CivData;
 import com.avrgaming.civcraft.main.CivGlobal;
 import com.avrgaming.civcraft.main.CivLog;
 import com.avrgaming.civcraft.main.CivMessage;
-import com.avrgaming.civcraft.mobs.components.MobComponent;
 import com.avrgaming.civcraft.object.Resident;
 import com.avrgaming.civcraft.threading.TaskMaster;
 import com.avrgaming.civcraft.util.CivColor;
 import com.avrgaming.civcraft.util.ItemManager;
-import com.avrgaming.moblib.MobLib;
 
+@SuppressWarnings("deprecation")
 public class CustomItemManager implements Listener {
 	
 	public static HashMap<String, LinkedList<ItemDurabilityEntry>> itemDuraMap = new HashMap<String, LinkedList<ItemDurabilityEntry>>();
 	public static boolean duraTaskScheduled = false;
 	
 	@EventHandler(priority = EventPriority.NORMAL)
-	public void onEnchantItemEvent(EnchantItemEvent event) {
-		CivMessage.sendError(event.getEnchanter(), "Items cannot be enchanted with enchantment tables.");
-		event.setCancelled(true);
-	}
-	
-	@EventHandler(priority = EventPriority.NORMAL)
 	public void onBlockBreak(BlockBreakEvent event) {
-	//	this.onItemDurabilityChange(event.getPlayer(), event.getPlayer().getItemInHand());
+	//	this.onItemDurabilityChange(event.getPlayer(), event.getPlayer().getInventory().getItemInMainHand());
 	}
 	
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onBlockBreakSpawnItems(BlockBreakEvent event) {
 		if (event.getBlock().getType().equals(Material.LAPIS_ORE)) {
-			if (event.getPlayer().getItemInHand().containsEnchantment(Enchantment.SILK_TOUCH)) {
+			if (event.getPlayer().getInventory().getItemInMainHand().containsEnchantment(Enchantment.SILK_TOUCH)) {
 				return;
 			}
 			
@@ -112,7 +110,7 @@ public class CustomItemManager implements Listener {
 
 				int min = CivSettings.getInteger(CivSettings.materialsConfig, "tungsten_min_drop");
 				int max;
-				if (event.getPlayer().getItemInHand().containsEnchantment(Enchantment.LOOT_BONUS_BLOCKS)) {
+				if (event.getPlayer().getInventory().getItemInMainHand().containsEnchantment(Enchantment.LOOT_BONUS_BLOCKS)) {
 					max = CivSettings.getInteger(CivSettings.materialsConfig, "tungsten_max_drop_with_fortune");
 				} else {
 					max = CivSettings.getInteger(CivSettings.materialsConfig, "tungsten_max_drop");
@@ -138,7 +136,7 @@ public class CustomItemManager implements Listener {
 	
 	@EventHandler(priority = EventPriority.LOWEST) 
 	public void onBlockPlace(BlockPlaceEvent event) {
-		ItemStack stack = event.getPlayer().getItemInHand();
+		ItemStack stack = event.getPlayer().getInventory().getItemInMainHand();
 		if (stack == null || stack.getType().equals(Material.AIR)) {
 			return;
 		}
@@ -153,8 +151,12 @@ public class CustomItemManager implements Listener {
 	
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerInteract(PlayerInteractEvent event) {
-	
-		ItemStack stack = event.getPlayer().getItemInHand();
+		ItemStack stack = null;
+		if (event.getHand() == EquipmentSlot.OFF_HAND) {
+			 stack = event.getPlayer().getInventory().getItemInOffHand();
+		} else {
+			 stack = event.getPlayer().getInventory().getItemInMainHand();
+		}
 		if (stack == null) {
 			return;
 		}
@@ -171,7 +173,7 @@ public class CustomItemManager implements Listener {
 			return;
 		}
 		
-		ItemStack stack = event.getPlayer().getItemInHand();
+		ItemStack stack = event.getPlayer().getInventory().getItemInMainHand();
 		if (stack == null) {
 			return;
 		}
@@ -189,7 +191,7 @@ public class CustomItemManager implements Listener {
 			return;
 		}
 		
-		ItemStack stack = event.getPlayer().getItemInHand();
+		ItemStack stack = event.getPlayer().getInventory().getItemInMainHand();
 		if (stack == null) {
 			return;
 		}
@@ -209,8 +211,27 @@ public class CustomItemManager implements Listener {
 
 		if (LoreMaterial.isCustom(stack)) {
 			LoreMaterial.getMaterial(stack).onItemDrop(event);
+			return;
+		}
+		
+		String custom = isCustomDrop(stack);
+		
+		if (custom != null) {
+			event.setCancelled(true);
 		}
 	}	
+	
+	private static String isCustomDrop(ItemStack stack) {
+		if (stack == null || ItemManager.getId(stack) != 166) {
+			return null;
+		}
+		
+		if(LoreGuiItem.isGUIItem(stack)) {
+			return null;
+		}
+		
+		return stack.getItemMeta().getDisplayName();
+	}
 	
 	/*
 	 * Prevent the player from using goodies in crafting recipies.
@@ -242,6 +263,16 @@ public class CustomItemManager implements Listener {
 
 		if (LoreMaterial.isCustom(stack)) {
 			LoreMaterial.getMaterial(stack).onItemSpawn(event);
+			return;
+		}
+		
+		String custom = isCustomDrop(stack);
+		
+		if (custom != null) {
+			ItemStack newStack = LoreMaterial.spawn(LoreMaterial.materialMap.get(custom), stack.getAmount());
+			event.getEntity().getWorld().dropItemNaturally(event.getLocation(), newStack);
+			event.setCancelled(true);
+			return;
 		}
 		
 		if (isUnwantedVanillaItem(stack)) {
@@ -264,11 +295,22 @@ public class CustomItemManager implements Listener {
 			defendingPlayer = (Player)event.getEntity();
 		}
 		
+		if (event.getDamager() instanceof LightningStrike) {
+			/* Return after Tesla tower does damage, do not apply armor defense. */
+			try {
+				event.setDamage(CivSettings.getInteger(CivSettings.warConfig, "tesla_tower.damage"));
+				return;
+			} catch (InvalidConfiguration e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		if (event.getDamager() instanceof Arrow) {
 			LivingEntity shooter = (LivingEntity) ((Arrow)event.getDamager()).getShooter();
 			
 			if (shooter instanceof Player) {
-				ItemStack inHand = ((Player)shooter).getItemInHand();
+				ItemStack inHand = ((Player)shooter).getInventory().getItemInMainHand();
 				if (LoreMaterial.isCustom(inHand)) {
 					LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(inHand);
 					craftMat.onRangedAttack(event, inHand);
@@ -279,13 +321,15 @@ public class CustomItemManager implements Listener {
 					/* Arrow was fired by a tower. */
 					afc.setHit(true);
 					afc.destroy(event.getDamager());
-					
-					Resident defenderResident = CivGlobal.getResident(defendingPlayer);
-					if (defenderResident != null && defenderResident.hasTown() && 
-							defenderResident.getTown().getCiv() == afc.getFromTower().getTown().getCiv()) {
-						/* Prevent friendly fire from arrow towers. */
-						event.setCancelled(true);
-						return;
+					if (defendingPlayer != null)
+					{
+						Resident defenderResident = CivGlobal.getResident(defendingPlayer);
+						if (defenderResident != null && defenderResident.hasTown() && 
+								defenderResident.getTown().getCiv() == afc.getFromTower().getTown().getCiv()) {
+							/* Prevent friendly fire from arrow towers. */
+							event.setCancelled(true);
+							return;
+						}
 					}
 					
 					/* Return after arrow tower does damage, do not apply armor defense. */
@@ -294,7 +338,7 @@ public class CustomItemManager implements Listener {
 				}
 			}
 		} else if (event.getDamager() instanceof Player) {
-			ItemStack inHand = ((Player)event.getDamager()).getItemInHand();
+			ItemStack inHand = ((Player)event.getDamager()).getInventory().getItemInMainHand();
 			LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(inHand);
 			if (craftMat != null) {
 				craftMat.onAttack(event, inHand);
@@ -304,12 +348,19 @@ public class CustomItemManager implements Listener {
 			}
 		}
 		
-		if (defendingPlayer == null) {
-			if (event.getEntity() instanceof LivingEntity) {
-				if (MobLib.isMobLibEntity((LivingEntity) event.getEntity())) {
-					MobComponent.onDefense(event.getEntity(), event);
-				}	
+		if (event.getEntity() instanceof Horse) {
+			if (HorseModifier.isCivCraftHorse((LivingEntity) event.getEntity())) {
+				//Horses take 50% damage from all sources.
+				event.setDamage(event.getDamage()/2.0);
 			}
+		}
+		
+		if (defendingPlayer == null) {
+//			if (event.getEntity() instanceof LivingEntity) {
+//				if (MobLib.isMobLibEntity((LivingEntity) event.getEntity())) {
+//					MobComponent.onDefense(event.getEntity(), event);
+//				}	
+//			}
 			return;
 		} else {
 			/* Search equipt items for defense event. */
@@ -398,6 +449,43 @@ public class CustomItemManager implements Listener {
 		return true;
 	}
 	
+	private boolean processArmorDurabilityChanges(PlayerDeathEvent event, ItemStack stack, int i) {
+		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(stack);
+		if (craftMat != null) {
+			ItemChangeResult result = craftMat.onDurabilityDeath(event, stack);
+			if (result != null) {
+				if (!result.destroyItem) {
+					replaceItem(event, stack, result.stack);
+				} else {
+					replaceItem(event, stack, new ItemStack(Material.AIR));
+					event.getDrops().remove(stack);
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	private void replaceItem(PlayerDeathEvent event, ItemStack oldItem, ItemStack newItem) {
+		ArmorType type = ArmorType.matchType(oldItem);
+		switch (type) {
+		case HELMET:{
+			event.getEntity().getInventory().setHelmet(newItem);
+			break;}
+		case CHESTPLATE: {
+			event.getEntity().getInventory().setChestplate(newItem);
+			break;}
+		case LEGGINGS: {
+			event.getEntity().getInventory().setLeggings(newItem);
+			break;}
+		case BOOTS: {
+			event.getEntity().getInventory().setBoots(newItem);
+			break;}
+		}
+	
+	}
+	
 	@EventHandler(priority = EventPriority.LOW) 
 	public void onPlayerDeathEvent(PlayerDeathEvent event) {
 		HashMap<Integer, ItemStack> noDrop = new HashMap<Integer, ItemStack>();
@@ -436,7 +524,7 @@ public class CustomItemManager implements Listener {
 				continue;
 			}
 
-			if(!processDurabilityChanges(event, stack, i)) {
+			if(!processArmorDurabilityChanges(event, stack, i)) {
 				/* Don't process anymore more enhancements on items after its been destroyed. */
 				continue;
 			}
@@ -486,7 +574,10 @@ public class CustomItemManager implements Listener {
 			}
 			
 		}
-		TaskMaster.syncTask(new SyncRestoreItemsTask(noDrop, armorNoDrop, event.getEntity().getName()));
+		Boolean keepInventory = Boolean.valueOf(Bukkit.getWorld("world").getGameRuleValue("keepInventory"));
+		if (!keepInventory) {
+			TaskMaster.syncTask(new SyncRestoreItemsTask(noDrop, armorNoDrop, event.getEntity().getName()));
+		}
 		
 		
 	}
@@ -512,7 +603,6 @@ public class CustomItemManager implements Listener {
 		event.getDrops().removeAll(removed);
 	}
 	
-	@SuppressWarnings("deprecation")
 	@EventHandler(priority = EventPriority.LOW)
 	public void onItemPickup(PlayerPickupItemEvent event) {
 
@@ -528,14 +618,36 @@ public class CustomItemManager implements Listener {
 				event.getItem().remove();
 				event.setCancelled(true);
 			}
-		}
-		
-		if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.RAW_FISH)
+		} else if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.ENDER_PEARL)) {
+			LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getItem().getItemStack());
+			if (craftMat == null) {
+				/* Found a vanilla ender peral. */
+				LoreCraftableMaterial slime = LoreCraftableMaterial.getCraftMaterialFromId("mat_ender_pearl");
+				ItemStack newStack = LoreCraftableMaterial.spawn(slime);
+				newStack.setAmount(event.getItem().getItemStack().getAmount());
+				event.getPlayer().getInventory().addItem(newStack);
+				event.getPlayer().updateInventory();
+				event.getItem().remove();
+				event.setCancelled(true);
+			}
+		} else if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.TNT)) {
+			LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getItem().getItemStack());
+			if (craftMat == null) {
+				/* Found a vanilla tnt. */
+				LoreCraftableMaterial slime = LoreCraftableMaterial.getCraftMaterialFromId("mat_vanilla_tnt");
+				ItemStack newStack = LoreCraftableMaterial.spawn(slime);
+				newStack.setAmount(event.getItem().getItemStack().getAmount());
+				event.getPlayer().getInventory().addItem(newStack);
+				event.getPlayer().updateInventory();
+				event.getItem().remove();
+				event.setCancelled(true);
+			}
+		} else if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.RAW_FISH)
 				&& ItemManager.getData(event.getItem().getItemStack()) == 
 					ItemManager.getData(ItemManager.getMaterialData(CivData.FISH_RAW, CivData.CLOWNFISH))) {
 			LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getItem().getItemStack());
 			if (craftMat == null) {
-				/* Found a vanilla slime ball. */
+				/* Found a vanilla clownfish. */
 				LoreCraftableMaterial clown = LoreCraftableMaterial.getCraftMaterialFromId("mat_vanilla_clownfish");
 				ItemStack newStack = LoreCraftableMaterial.spawn(clown);
 				newStack.setAmount(event.getItem().getItemStack().getAmount());
@@ -544,14 +656,12 @@ public class CustomItemManager implements Listener {
 				event.getItem().remove();
 				event.setCancelled(true);
 			}
-		}
-		
-		if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.RAW_FISH)
+		} else if (ItemManager.getId(event.getItem().getItemStack()) == ItemManager.getId(Material.RAW_FISH)
 				&& ItemManager.getData(event.getItem().getItemStack()) == 
 					ItemManager.getData(ItemManager.getMaterialData(CivData.FISH_RAW, CivData.PUFFERFISH))) {
 			LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getItem().getItemStack());
 			if (craftMat == null) {
-				/* Found a vanilla slime ball. */
+				/* Found a vanilla pufferfish. */
 				LoreCraftableMaterial clown = LoreCraftableMaterial.getCraftMaterialFromId("mat_vanilla_pufferfish");
 				ItemStack newStack = LoreCraftableMaterial.spawn(clown);
 				newStack.setAmount(event.getItem().getItemStack().getAmount());
@@ -714,7 +824,7 @@ public class CustomItemManager implements Listener {
 	@EventHandler(priority = EventPriority.LOW)
 	public void OnPlayerInteractEntityEvent (PlayerInteractEntityEvent event) {
 			
-		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getPlayer().getItemInHand());
+		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getPlayer().getInventory().getItemInMainHand());
 		if (craftMat == null) {
 			return;
 		}
@@ -724,7 +834,7 @@ public class CustomItemManager implements Listener {
 	
 	@EventHandler(priority = EventPriority.LOW)
 	public void OnPlayerLeashEvent(PlayerLeashEntityEvent event) {
-		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getPlayer().getItemInHand());
+		LoreCraftableMaterial craftMat = LoreCraftableMaterial.getCraftMaterial(event.getPlayer().getInventory().getItemInMainHand());
 		if (craftMat == null) {
 			return;
 		}
@@ -787,7 +897,6 @@ public class CustomItemManager implements Listener {
 		return true;
 	}
 	
-	@SuppressWarnings("deprecation")
 	public static void removeUnwantedVanillaItems(Player player, Inventory inv) {
 		if (player.isOp()) {
 			/* Allow OP to carry vanilla stuff. */
@@ -806,7 +915,7 @@ public class CustomItemManager implements Listener {
 			}
 			if (!sentMessage) {
 				if (player != null) {
-					CivMessage.send(player, CivColor.LightGray+"Restricted vanilla items in your inventory have been removed.");
+					CivMessage.send(player, CivColor.LightGray+CivSettings.localize.localizedString("customItem_restrictedItemsRemoved"));
 				}
 				sentMessage = true;
 			}
@@ -838,7 +947,7 @@ public class CustomItemManager implements Listener {
 				contents[i] = new ItemStack(Material.AIR);
 				foundBad = true;
 				if (!sentMessage) {
-					CivMessage.send(player, CivColor.LightGray+"Restricted vanilla items in your inventory have been removed.");
+					CivMessage.send(player, CivColor.LightGray+CivSettings.localize.localizedString("customItem_restrictedItemsRemoved"));
 					sentMessage = true;
 				}
 			}		

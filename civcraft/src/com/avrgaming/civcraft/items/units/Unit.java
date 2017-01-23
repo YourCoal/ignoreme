@@ -110,7 +110,6 @@ public abstract class Unit {
 		return null;
 	}
 
-	@SuppressWarnings("deprecation")
 	public static void removeUnit(Player player) {
 		
 		for (ItemStack stack : player.getInventory().getContents()) {
@@ -167,22 +166,9 @@ public abstract class Unit {
 				return false;
 			}
 			
-			if ((!craftMat.getConfigId().equals("mat_composite_leather_helmet"))) {
+			if ((!craftMat.getConfigId().contains("mat_composite_leather"))) {
 				return false;
 			}
-			
-			if ((!craftMat.getConfigId().equals("mat_composite_leather_chestplate"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_composite_leather_leggings"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_composite_leather_boots"))) {
-				return false;
-			}
-			
 		}
 		return true;	
 	}
@@ -196,22 +182,9 @@ public abstract class Unit {
 				return false;
 			}
 			
-			if ((!craftMat.getConfigId().equals("mat_hardened_leather_helmet"))) {
+			if ((!craftMat.getConfigId().contains("mat_hardened_leather"))) {
 				return false;
 			}
-			
-			if ((!craftMat.getConfigId().equals("mat_hardened_leather_chestplate"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_hardened_leather_leggings"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_hardened_leather_boots"))) {
-				return false;
-			}
-			
 		}
 		return true;	
 	}
@@ -225,19 +198,7 @@ public abstract class Unit {
 				return false;
 			}
 			
-			if ((!craftMat.getConfigId().equals("mat_refined_leather_helmet"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_refined_leather_chestplate"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_refined_leather_leggings"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_refined_leather_boots"))) {
+			if ((!craftMat.getConfigId().contains("mat_refined_leather"))) {
 				return false;
 			}
 			
@@ -254,21 +215,10 @@ public abstract class Unit {
 				return false;
 			}
 			
-			if ((!craftMat.getConfigId().equals("mat_leather_helmet"))) {
+			if ((!craftMat.getConfigId().contains("mat_leather_"))) {
 				return false;
 			}
 			
-			if ((!craftMat.getConfigId().equals("mat_leather_chestplate"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_leather_leggings"))) {
-				return false;
-			}
-			
-			if ((!craftMat.getConfigId().equals("mat_leather_boots"))) {
-				return false;
-			}
 			
 		}
 		return true;	

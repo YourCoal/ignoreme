@@ -162,7 +162,7 @@ public abstract class CivAsyncTask implements Runnable {
 		UpdateInventoryRequest request = new UpdateInventoryRequest(SyncUpdateInventory.lock);
 		request.action = action;
 		request.stack = itemStack;
-		request.inv = inv;
+		request.multiInv = inv;
 		
 		this.finished = false;
 		
@@ -177,7 +177,7 @@ public abstract class CivAsyncTask implements Runnable {
 				 */
 				request.condition.await(TIMEOUT, TimeUnit.MILLISECONDS);
 				if (!request.finished) {
-					CivLog.warning("Couldn't update inventory in "+TIMEOUT+" milliseconds! Retrying.");
+					CivLog.warning("Couldn't async update inventory in "+TIMEOUT+" milliseconds! Retrying.");
 				}
 			}
 			
